@@ -49,6 +49,10 @@ def monitor():
     if oil_z < -2.5: alerts.append(f"> 🛢️ **原油见底预警**\n> Z-Score: <font color=\"info\">{oil_z:.2f}</font>")
     if mu_z < -2.0: alerts.append(f"> 💾 **内存行业黄金坑**\n> 美光 Z-Score: <font color=\"info\">{mu_z:.2f}</font>")
 
+    # 在最后加入这一段进行强制测试
+    test_msg = "🔔 GitHub Actions 连通性测试：如果你看到这条消息，说明环境变量配置正确！"
+    send_wecom_msg(test_msg) # 强制发送一条消息
+
     if alerts:
         msg = f"🏹 **极值狙击手报告** ({datetime.now().strftime('%Y-%m-%d')})\n\n" + "\n\n".join(alerts)
         send_wecom_msg(msg)
