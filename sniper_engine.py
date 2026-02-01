@@ -7,6 +7,12 @@ from datetime import datetime
 # 从 GitHub Secrets 读取企业微信 Webhook 地址
 WECOM_WEBHOOK = os.getenv("WECOM_WEBHOOK")
 
+# 加这一行调试：
+if not WECOM_WEBHOOK:
+    print("❌ 错误：未能从环境变量中读取到 WECOM_WEBHOOK，请检查 GitHub Secrets 配置！")
+else:
+    print("✅ 成功读取到 Webhook 地址，准备发送...")
+
 def send_wecom_msg(message):
     """发送企业微信机器人消息"""
     headers = {"Content-Type": "application/json"}
