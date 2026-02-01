@@ -23,6 +23,6 @@ jobs:
 
       - name: Run Sniper Engine
         env:
-          TG_TOKEN: ${{ secrets.TG_TOKEN }}
-          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          # 这一行是关键：把 GitHub 的 Secret 映射为代码能读到的环境变量
+          WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
         run: python sniper_engine.py
