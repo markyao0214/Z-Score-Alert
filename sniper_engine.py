@@ -7,6 +7,12 @@ from datetime import datetime
 # 从 GitHub Secrets 读取企业微信 Webhook 地址
 WECOM_WEBHOOK = os.getenv("WECOM_WEBHOOK")
 
+# 打印调试信息（GitHub会自动屏蔽具体URL，但我们可以看长度）
+if webhook:
+    print(f"✅ 系统检查：成功读取到 Secret，字符长度为 {len(webhook)}")
+else:
+    print("❌ 系统检查：未读取到 WECOM_WEBHOOK，请检查 GitHub Settings 中的 Repository Secrets！")
+
 # 加这一行调试：
 if not WECOM_WEBHOOK:
     print("❌ 错误：未能从环境变量中读取到 WECOM_WEBHOOK，请检查 GitHub Secrets 配置！")
