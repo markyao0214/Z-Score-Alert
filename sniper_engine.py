@@ -4,20 +4,8 @@ import os
 import requests
 from datetime import datetime
 
-# 从 GitHub Secrets 读取企业微信 Webhook 地址
+# 从 GitHub Secrets 读取配置
 WECOM_WEBHOOK = os.getenv("WECOM_WEBHOOK")
-
-# 打印调试信息（GitHub会自动屏蔽具体URL，但我们可以看长度）
-if webhook:
-    print(f"✅ 系统检查：成功读取到 Secret，字符长度为 {len(webhook)}")
-else:
-    print("❌ 系统检查：未读取到 WECOM_WEBHOOK，请检查 GitHub Settings 中的 Repository Secrets！")
-
-# 加这一行调试：
-if not WECOM_WEBHOOK:
-    print("❌ 错误：未能从环境变量中读取到 WECOM_WEBHOOK，请检查 GitHub Secrets 配置！")
-else:
-    print("✅ 成功读取到 Webhook 地址，准备发送...")
 
 def send_wecom_msg(message):
     """发送企业微信机器人消息"""
@@ -29,43 +17,45 @@ def send_wecom_msg(message):
         }
     }
     try:
-        requests.post(WECOM_WEBHOOK, json=payload, headers=headers)
-        print("企业微信告警已发送")
+        r = requests.post(WECOM_WEBHOOK, json=payload, headers=headers)
+        print(f"微信响应状态: {r.status_code}")
     except Exception as e:
         print(f"告警发送失败: {e}")
 
 def monitor():
-    # 监控品种：金银比(GSR), 原油(WTI), 美光(MU)
+    # 监控品种
     tickers = {"Gold": "GC=F", "Silver": "SI=F", "Crude_Oil": "CL=F", "Micron": "MU"}
-    data = yf.download(list(tickers.values()), period="3y")['Close']
+    
+    print("正在获取数据...")
+    data = yf.download(list(tickers.values()), period="3y", progress=False)['Close']
     data = data.rename(columns={v: k for k, v in tickers.items()})
     data['GSR'] = data['Gold'] / data['Silver']
     
     def get_z(series):
         return (series - series.rolling(252).mean()) / series.rolling(252).std()
 
+    # 获取最新一天的 Z-Score
     gsr_z = get_z(data['GSR']).iloc[-1]
     oil_z = get_z(data['Crude_Oil']).iloc[-1]
     mu_z = get_z(data['Micron']).iloc[-1]
-
-# --- 强制测试模块：无论有没有极值，都发这一条 ---
-    test_info = f"🔋 系统心跳正常 | 当前 GSR Z轴: {gsr_z:.2f}"
-    send_wecom_msg(test_info) 
-    # -------------------------------------------
     
-    alerts = []
-    # 极值逻辑：偏离曲线触及阈值
-    if gsr_z < -2.5: alerts.append(f"> 🔴 **白银过热警报**\n> 当前金银比 Z-Score: <font color=\"warning\">{gsr_z:.2f}</font>\n> **动作**: 考虑布局 SLV 远期 Put。")
-    if gsr_z > 2.5: alerts.append(f"> 🟢 **白银低估警报**\n> 当前金银比 Z-Score: <font color=\"info\">{gsr_z:.2f}</font>\n> **动作**: 关注白银长线做多机会。")
-    if oil_z < -2.5: alerts.append(f"> 🛢️ **原油见底预警**\n> Z-Score: <font color=\"info\">{oil_z:.2f}</font>")
-    if mu_z < -2.0: alerts.append(f"> 💾 **内存行业黄金坑**\n> 美光 Z-Score: <font color=\"info\">{mu_z:.2f}</font>")
+    # --- 💓 核心测试逻辑：强制发送心跳包 ---
+    heartbeat_msg = (
+        f"🔋 **狙击手系统心跳测试**\n"
+        f"> 状态: <font color=\"info\">运行中</font>\n"
+        f"> 当前金银比 Z轴: `{gsr_z:.2f}`\n"
+        f"> 提示: 你收到此消息说明 GitHub 链路已完全打通！"
+    )
+    send_wecom_msg(heartbeat_msg)
+    # ---------------------------------------
 
-    # 在最后加入这一段进行强制测试
-    test_msg = "🔔 GitHub Actions 连通性测试：如果你看到这条消息，说明环境变量配置正确！"
-    send_wecom_msg(test_msg) # 强制发送一条消息
+    alerts = []
+    if gsr_z < -2.5: alerts.append(f"> 🔴 **白银过热警报** (Z: {gsr_z:.2f})")
+    if gsr_z > 2.5: alerts.append(f"> 🟢 **白银低估警报** (Z: {gsr_z:.2f})")
+    if oil_z < -2.5: alerts.append(f"> 🛢️ **原油见底预警** (Z: {oil_z:.2f})")
 
     if alerts:
-        msg = f"🏹 **极值狙击手报告** ({datetime.now().strftime('%Y-%m-%d')})\n\n" + "\n\n".join(alerts)
+        msg = f"🏹 **实时极值警报** ({datetime.now().strftime('%Y-%m-%d')})\n\n" + "\n\n".join(alerts)
         send_wecom_msg(msg)
 
 if __name__ == "__main__":
