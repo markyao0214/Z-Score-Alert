@@ -33,34 +33,41 @@ def monitor():
 
     print("启动全矩阵扫描...")
     
-# 抓取数据部分修改
+# 抓取数据
     raw_data = {}
     for name, ticker in monitors.items():
         try:
-            if "/" in ticker:  # 处理比例逻辑
+            if "/" in ticker: # 处理比例逻辑
                 t1, t2 = ticker.split("/")
-                # 使用 squeeze() 确保返回的是 Series，并处理多列索引问题
-                d1 = yf.download(t1, period="2y", progress=False)['Close'].squeeze()
-                d2 = yf.download(t2, period="2y", progress=False)['Close'].squeeze()
-                # 对齐索引后再计算比例
-                raw_data[name] = (d1 / d2).dropna()
+                d1 = yf.download(t1, period="2y", progress=False)['Close']
+                d2 = yf.download(t2, period="2y", progress=False)['Close']
+                # squeeze() 将单列 DataFrame 转为 Series，ffill 处理节假日不一致
+                combined = (d1.squeeze() / d2.squeeze()).ffill().dropna()
+                raw_data[name] = combined
             else:
                 data = yf.download(ticker, period="2y", progress=False)['Close']
-                raw_data[name] = data.squeeze().dropna()
+                raw_data[name] = data.squeeze().ffill().dropna()
         except Exception as e:
             print(f"数据抓取失败 [{name}]: {e}")
 
     alerts = []
     
     for name, series in raw_data.items():
-        # 计算双窗口 Z-Score
-        z_short = calculate_z(series, 60).iloc[-1]  # 捕捉短线爆发/崩盘
-        z_long = calculate_z(series, 252).iloc[-1] # 捕捉长线周期转折
-        
-        # 2. 核心狙击逻辑
-        # 逻辑 A：极度超涨 (做空信号)
-        if z_short > 2.8:
-            alerts.append(f"> ⚠️ **{name} 高位过热**\n> 短线Z轴: <font color=\"warning\">{z_short:.2f}</font>\n> 提示: 警惕类似白银的高位跳水风险。")
+        try:
+            # 计算 Z-Score 并强制转为标量 (float)
+            z_short_series = calculate_z(series, 60)
+            z_long_series = calculate_z(series, 252)
+            
+            if len(z_short_series) < 1 or len(z_long_series) < 1:
+                continue
+
+            # 关键修复：使用 float() 确保它是单一数值
+            z_short = float(z_short_series.iloc[-1])
+            z_long = float(z_long_series.iloc[-1])
+            
+            # 2. 核心狙击逻辑 (后续 if 判断现在可以正常运行了)
+            if z_short > 2.8:
+                alerts.append(f"> ⚠️ **{name} 高位过热**\n> 短线Z轴: <font color=\"warning\">{z_short:.2f}</font>\n> 提示: 警惕类似白银的高位跳水风险。")
         
         # 逻辑 B：极度超跌 (抄底信号)
         if z_long < -2.2:
