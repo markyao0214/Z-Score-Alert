@@ -33,16 +33,22 @@ def monitor():
 
     print("启动全矩阵扫描...")
     
-    # 抓取数据
+# 抓取数据部分修改
     raw_data = {}
     for name, ticker in monitors.items():
-        if "/" in ticker: # 处理比例逻辑
-            t1, t2 = ticker.split("/")
-            d1 = yf.download(t1, period="2y", progress=False)['Close']
-            d2 = yf.download(t2, period="2y", progress=False)['Close']
-            raw_data[name] = d1 / d2
-        else:
-            raw_data[name] = yf.download(ticker, period="2y", progress=False)['Close']
+        try:
+            if "/" in ticker:  # 处理比例逻辑
+                t1, t2 = ticker.split("/")
+                # 使用 squeeze() 确保返回的是 Series，并处理多列索引问题
+                d1 = yf.download(t1, period="2y", progress=False)['Close'].squeeze()
+                d2 = yf.download(t2, period="2y", progress=False)['Close'].squeeze()
+                # 对齐索引后再计算比例
+                raw_data[name] = (d1 / d2).dropna()
+            else:
+                data = yf.download(ticker, period="2y", progress=False)['Close']
+                raw_data[name] = data.squeeze().dropna()
+        except Exception as e:
+            print(f"数据抓取失败 [{name}]: {e}")
 
     alerts = []
     
