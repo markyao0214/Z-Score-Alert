@@ -2,26 +2,28 @@ name: Market Sniper Alert
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 每6小时自动运行
-  workflow_dispatch:      # 允许我们手动点击测试
+    # 北京时间周一至周五上午 10:30 运行 (UTC 2:30)
+    - cron: '30 2 * * 1-5'
+  workflow_dispatch: # 允许你手动点击 "Run workflow" 测试
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
+          python-version: '3.10' # 建议使用更稳定的 3.10
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install yfinance pandas requests lxml
 
       - name: Run Sniper Engine
         env:
-          # 必须和代码里的 os.getenv("WECOM_WEBHOOK") 名字完全一致
           WECOM_WEBHOOK: ${{ secrets.WECOM_WEBHOOK }}
         run: python sniper_engine.py
